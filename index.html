@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Nós Dois — nosso álbum</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Silkscreen:wght@400;700&family=Dancing+Script:wght@600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+
+    <!-- Fancybox -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+    <header>
+        <div class="emojis">
+            <span>📸</span>
+            <span>💞</span>
+        </div>
+        <h1 class="title">NÓS DOIS</h1>
+        <p class="names">Você &amp; Eu</p>
+    </header>
+
+    <main>
+
+        <!-- Galeria -->
+        <section class="gallery">
+            <div class="gallery-header">
+                <h2>NOSSAS FOTOS</h2>
+                <span class="count" id="photo-count">carregando…</span>
+            </div>
+
+            <p class="gallery-empty" id="gallery-empty" hidden>
+                Nenhuma foto ainda. Toque no <strong>+</strong> para guardar a primeira.
+            </p>
+
+            <div class="card-grid" id="card-grid"></div>
+        </section>
+    </main>
+
+    <!-- Modelo de card (preenchido pelo app.js) -->
+    <template id="card-template">
+        <article class="photo-card">
+            <input type="checkbox" class="flip-toggle">
+            <div class="card-inner">
+                <div class="card-front">
+                    <a class="photo" data-fancybox="gallery" aria-label="Ampliar foto">
+                        <img alt="" loading="lazy" decoding="async">
+                    </a>
+                    <label class="flip-button" aria-label="Virar foto">
+                        <span><ion-icon name="sync"></ion-icon></span>
+                    </label>
+                </div>
+                <div class="card-back">
+                    <label class="flip-button" aria-label="Desvirar foto">
+                        <span><ion-icon name="sync"></ion-icon></span>
+                    </label>
+                    <div class="back-content">
+                        <div class="back-date">
+                            <span class="weekday"></span>
+                            <span class="date"></span>
+                        </div>
+                        <p class="description"></p>
+                        <div class="bottom">
+                            <span class="photo-number"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <!-- Botão flutuante -->
+    <a href="#upload" class="add-button" aria-label="Nova foto">
+        <ion-icon name="add"></ion-icon>
+    </a>
+
+    <!-- Tela de upload (abre com #upload) -->
+    <aside id="upload" class="upload-sheet" aria-label="Nova foto">
+        <a href="#" class="backdrop" aria-label="Fechar"></a>
+
+        <div class="sheet">
+            <div class="handle"></div>
+
+            <div class="sheet-header">
+                <h2>NOVA FOTO</h2>
+                <a href="#" class="close-button" aria-label="Fechar">
+                    <ion-icon name="close"></ion-icon>
+                </a>
+            </div>
+
+            <form action="#" class="upload-form" id="upload-form" novalidate>
+
+                <label class="dropzone">
+                    <input type="file" name="foto" accept="image/*" required>
+                    <div class="dropzone-empty">
+                        <ion-icon name="camera-outline"></ion-icon>
+                        <strong>Escolher foto</strong>
+                        <span>Toque para escolher da galeria ou câmera</span>
+                    </div>
+                    <div class="dropzone-filled">
+                        <ion-icon name="checkmark-circle"></ion-icon>
+                        <strong>Foto selecionada</strong>
+                        <span>Toque para trocar</span>
+                    </div>
+                </label>
+
+                <div class="field">
+                    <span class="field-label">DATA</span>
+                    <div class="date-row">
+                        <input type="checkbox" id="use-today" class="today-toggle" checked>
+                        <input type="date" name="data" class="date-input" aria-label="Data da foto">
+                        <span class="today-label" id="today-label">Hoje</span>
+                        <label for="use-today" class="today-chip">
+                            <ion-icon name="calendar-outline"></ion-icon>
+                            Hoje
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="top">
+                        <span class="field-label">DESCRIÇÃO</span>
+                        <span class="counter" id="desc-counter">até 280</span>
+                    </div>
+                    <textarea name="descricao" rows="3" maxlength="280" placeholder="O que aconteceu nesse dia?"></textarea>
+                </div>
+
+                <p class="form-status" id="form-status" role="alert" hidden></p>
+
+                <button type="submit" class="save-button">Guardar foto</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Ionic Icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <!-- Fancybox -->
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.36/dist/fancybox/fancybox.umd.js"></script>
+
+    <!-- App -->
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
