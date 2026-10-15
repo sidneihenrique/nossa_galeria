@@ -774,6 +774,50 @@ textarea::placeholder {
     color: var(--brown-faint);
 }
 
+/* Várias fotos: mesma descrição ou uma para cada */
+.same-desc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.same-desc input {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--pink);
+    cursor: pointer;
+}
+
+.photo-descriptions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.photo-description {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.photo-description img {
+    flex: none;
+    width: 64px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    background-color: var(--sand-pale);
+}
+
+.photo-description textarea {
+    flex: 1;
+    min-width: 0;
+}
+
 .save-button {
     height: 56px;
     border: none;

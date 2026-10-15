@@ -108,17 +108,17 @@
                 </div>
 
                 <label class="dropzone">
-                    <input type="file" name="foto" accept="image/*" required>
+                    <input type="file" name="foto" accept="image/*" multiple required>
                     <img class="dropzone-preview" id="dropzone-preview" alt="Prévia da foto escolhida" hidden>
                     <div class="dropzone-empty">
                         <ion-icon name="camera-outline"></ion-icon>
-                        <strong>Escolher foto</strong>
-                        <span>Toque para escolher da galeria ou câmera</span>
+                        <strong>Escolher fotos</strong>
+                        <span>Toque para escolher uma ou várias da galeria ou câmera</span>
                     </div>
                     <div class="dropzone-filled">
                         <ion-icon name="checkmark-circle"></ion-icon>
-                        <strong>Foto selecionada</strong>
-                        <span>Toque para trocar</span>
+                        <strong id="dropzone-title">Foto selecionada</strong>
+                        <span id="dropzone-hint">Toque para trocar</span>
                     </div>
                 </label>
 
@@ -140,7 +140,12 @@
                         <span class="field-label">DESCRIÇÃO</span>
                         <span class="counter" id="desc-counter">até 280</span>
                     </div>
+                    <label class="same-desc" id="same-desc" hidden>
+                        <input type="checkbox" name="mesmaDescricao" checked>
+                        <span>Aplicar a mesma descrição para todas as fotos</span>
+                    </label>
                     <textarea name="descricao" rows="3" maxlength="280" placeholder="O que aconteceu nesse dia?"></textarea>
+                    <div class="photo-descriptions" id="photo-descriptions" hidden></div>
                 </div>
 
                 <p class="form-status" id="form-status" role="alert" hidden></p>

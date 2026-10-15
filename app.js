@@ -15,6 +15,11 @@
     const form = document.getElementById('upload-form');
     const fileInput = form.elements.foto;
     const preview = document.getElementById('dropzone-preview');
+    const dropzoneTitle = document.getElementById('dropzone-title');
+    const dropzoneHint = document.getElementById('dropzone-hint');
+    const sameDescLabel = document.getElementById('same-desc');
+    const sameDescToggle = form.elements.mesmaDescricao;
+    const perPhotoList = document.getElementById('photo-descriptions');
     const tokenField = document.getElementById('token-field');
     const tokenInput = form.elements.token;
     const forgetTokenButton = document.getElementById('forget-token');
@@ -176,16 +181,61 @@
         counter.textContent = length ? `${length}/280` : 'até 280';
     }
 
-    // Prévia da foto escolhida dentro do campo
-    function updatePreview() {
-        if (preview.src) URL.revokeObjectURL(preview.src);
+    const MAX_FILES = 20;
+    let selectionUrls = [];
+
+    // Prévia da primeira foto dentro do campo e, com várias, a lista de descrições por foto
+    function updateSelection() {
+        selectionUrls.forEach((url) => URL.revokeObjectURL(url));
         preview.removeAttribute('src');
         preview.hidden = true;
+        perPhotoList.replaceChildren();
 
-        const file = fileInput.files[0];
-        if (file) {
-            preview.src = URL.createObjectURL(file);
+        const files = Array.from(fileInput.files);
+        selectionUrls = files.map((file) => URL.createObjectURL(file));
+
+        if (files.length) {
+            preview.src = selectionUrls[0];
             preview.hidden = false;
+        }
+
+        selectionUrls.forEach((url, index) => {
+            const item = document.createElement('div');
+            item.className = 'photo-description';
+
+            const thumb = document.createElement('img');
+            thumb.src = url;
+            thumb.alt = `Foto ${index + 1}`;
+
+            const textarea = document.createElement('textarea');
+            textarea.rows = 2;
+            textarea.maxLength = 280;
+            textarea.placeholder = `Descrição da foto ${index + 1}`;
+
+            item.append(thumb, textarea);
+            perPhotoList.append(item);
+        });
+
+        const count = files.length;
+        dropzoneTitle.textContent = count > 1 ? `${count} fotos selecionadas` : 'Foto selecionada';
+        dropzoneHint.textContent = count > 1 ? `${count} fotos · toque para trocar` : 'Toque para trocar';
+        sameDescLabel.hidden = count < 2;
+        showStatus(count > MAX_FILES ? `Escolha no máximo ${MAX_FILES} fotos por vez.` : '');
+        updateDescriptionMode();
+    }
+
+    // Mesma descrição para todas (um campo) ou uma por foto (lista com miniaturas)
+    function updateDescriptionMode() {
+        const perPhoto = fileInput.files.length > 1 && !sameDescToggle.checked;
+        perPhotoList.hidden = !perPhoto;
+        descInput.hidden = perPhoto;
+        counter.hidden = perPhoto;
+
+        if (perPhoto) {
+            // Começa cada campo com o texto que já estava escrito
+            perPhotoList.querySelectorAll('textarea').forEach((textarea) => {
+                if (!textarea.value) textarea.value = descInput.value;
+            });
         }
     }
 
@@ -317,15 +367,26 @@
         }
     }
 
-    async function uploadToGithub(token, name, image, extension, infoText) {
+    // items: [{ name, image, extension, infoText }] — todas as fotos vão no mesmo commit
+    async function uploadToGithub(token, items, onProgress = () => {}) {
         const { branch, uploadsPath } = config.github;
-        const imageFile = `${name}.${extension}`;
-        const infoFile = `${name}.txt`;
+        const files = items.map((item) => ({
+            ...item,
+            imageFile: `${item.name}.${item.extension}`,
+            infoFile: `${item.name}.txt`,
+        }));
 
-        const imageBlob = await github(token, '/git/blobs', {
-            method: 'POST',
-            body: JSON.stringify({ content: await blobToBase64(image), encoding: 'base64' }),
-        });
+        for (const [index, file] of files.entries()) {
+            onProgress(index + 1, files.length);
+            const blob = await github(token, '/git/blobs', {
+                method: 'POST',
+                body: JSON.stringify({ content: await blobToBase64(file.image), encoding: 'base64' }),
+            });
+            file.blobSha = blob.sha;
+        }
+
+        const names = files.map((file) => file.name);
+        const message = (files.length === 1 ? 'Adiciona 1 foto' : `Adiciona ${files.length} fotos`) + `\n\n${names.join('\n')}`;
 
         // Se alguém publicar ao mesmo tempo, o branch anda e a gente refaz o commit em cima
         for (let attempt = 1; ; attempt++) {
@@ -334,8 +395,9 @@
             const commit = await github(token, `/git/commits/${head}`);
 
             const manifest = await readRemoteManifest(token, head);
-            manifest.fotos = manifest.fotos.filter((entry) => entry.info !== infoFile);
-            manifest.fotos.push({ imagem: imageFile, info: infoFile });
+            const newInfos = new Set(files.map((file) => file.infoFile));
+            manifest.fotos = manifest.fotos.filter((entry) => !newInfos.has(entry.info));
+            files.forEach((file) => manifest.fotos.push({ imagem: file.imageFile, info: file.infoFile }));
             manifest.fotos.sort((a, b) => b.info.localeCompare(a.info));
 
             const tree = await github(token, '/git/trees', {
@@ -343,8 +405,10 @@
                 body: JSON.stringify({
                     base_tree: commit.tree.sha,
                     tree: [
-                        { path: `${uploadsPath}/${imageFile}`, mode: '100644', type: 'blob', sha: imageBlob.sha },
-                        { path: `${uploadsPath}/${infoFile}`, mode: '100644', type: 'blob', content: infoText },
+                        ...files.flatMap((file) => [
+                            { path: `${uploadsPath}/${file.imageFile}`, mode: '100644', type: 'blob', sha: file.blobSha },
+                            { path: `${uploadsPath}/${file.infoFile}`, mode: '100644', type: 'blob', content: file.infoText },
+                        ]),
                         { path: `${uploadsPath}/manifest.json`, mode: '100644', type: 'blob', content: JSON.stringify(manifest, null, 4) + '\n' },
                     ],
                 }),
@@ -352,7 +416,7 @@
 
             const newCommit = await github(token, '/git/commits', {
                 method: 'POST',
-                body: JSON.stringify({ message: `Adiciona 1 foto\n\n${name}`, tree: tree.sha, parents: [head] }),
+                body: JSON.stringify({ message, tree: tree.sha, parents: [head] }),
             });
 
             try {
@@ -371,9 +435,13 @@
         event.preventDefault();
         showStatus('');
 
-        const file = fileInput.files[0];
-        if (!file) {
+        const files = Array.from(fileInput.files);
+        if (!files.length) {
             showStatus('Escolha uma foto primeiro.');
+            return;
+        }
+        if (files.length > MAX_FILES) {
+            showStatus(`Escolha no máximo ${MAX_FILES} fotos por vez.`);
             return;
         }
 
@@ -393,26 +461,53 @@
         saveButton.textContent = 'Guardando…';
 
         try {
-            const name = timestampName();
-            const description = descInput.value.trim();
-            const infoText = buildInfoText(isoDate, description);
-            const image = await prepareImage(file);
+            const total = files.length;
+            const perPhoto = total > 1 && !sameDescToggle.checked;
+            const perPhotoInputs = perPhotoList.querySelectorAll('textarea');
+            const publishedAt = Date.now();
+            const items = [];
 
-            const extension = IMAGE_EXTENSIONS[image.type];
-            if (!extension) throw new Error('Formato de imagem não suportado (use JPG, PNG, WEBP ou GIF).');
-            await uploadToGithub(token, name, image, extension, infoText);
+            for (const [index, file] of files.entries()) {
+                if (total > 1) saveButton.textContent = `Preparando ${index + 1}/${total}…`;
+                const image = await prepareImage(file);
+                const extension = IMAGE_EXTENSIONS[image.type];
+                if (!extension) {
+                    throw new Error(total > 1
+                        ? `A foto ${index + 1} está num formato não suportado (use JPG, PNG, WEBP ou GIF).`
+                        : 'Formato de imagem não suportado (use JPG, PNG, WEBP ou GIF).');
+                }
+
+                const description = (perPhoto ? perPhotoInputs[index].value : descInput.value).trim();
+                items.push({
+                    // 1 ms de diferença entre elas; a primeira escolhida fica com o horário mais
+                    // recente, para aparecer primeiro entre fotos do mesmo dia
+                    name: timestampName(new Date(publishedAt + (total - 1 - index))),
+                    image,
+                    extension,
+                    description,
+                    infoText: buildInfoText(isoDate, description),
+                });
+            }
+
+            await uploadToGithub(token, items, (done) => {
+                if (total > 1) saveButton.textContent = `Enviando ${done}/${total}…`;
+            });
             saveToken(token);
 
             // Mostra na hora; para todo mundo aparece quando o GitHub Pages atualizar
-            photos.push({ name, image: URL.createObjectURL(image), date: isoDate, description });
+            items.forEach((item) => {
+                photos.push({ name: item.name, image: URL.createObjectURL(item.image), date: isoDate, description: item.description });
+            });
             render();
 
             form.reset();
-            updatePreview();
+            updateSelection();
             updateCounter();
             updateTokenField();
             location.hash = '';
-            showToast('Foto guardada! Em alguns minutos ela aparece no site para todo mundo.');
+            showToast(total > 1
+                ? `${total} fotos guardadas! Em alguns minutos elas aparecem no site para todo mundo.`
+                : 'Foto guardada! Em alguns minutos ela aparece no site para todo mundo.');
         } catch (error) {
             if ([401, 403, 404].includes(error.status)) {
                 forgetToken();
@@ -439,7 +534,8 @@
         updateTokenField();
         showToast('Chave do GitHub apagada deste aparelho.');
     });
-    fileInput.addEventListener('change', updatePreview);
+    fileInput.addEventListener('change', updateSelection);
+    sameDescToggle.addEventListener('change', updateDescriptionMode);
     form.addEventListener('submit', handleSubmit);
     window.addEventListener('hashchange', () => {
         if (location.hash === '#upload') {
