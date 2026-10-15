@@ -420,6 +420,34 @@ main {
     transform: scale(0.94);
 }
 
+/* Botão de som (canto oposto ao +) */
+.music-button {
+    position: fixed;
+    left: 20px;
+    bottom: calc(30px + env(safe-area-inset-bottom));
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--white);
+    box-shadow: 0 8px 20px -8px var(--shadow);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.music-button:active {
+    transform: scale(0.94);
+}
+
+.music-button ion-icon {
+    font-size: 20px;
+    color: var(--pink);
+}
+
 .add-button ion-icon {
     font-size: 28px;
     color: var(--white);

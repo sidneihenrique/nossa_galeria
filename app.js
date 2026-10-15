@@ -521,6 +521,59 @@
     }
 
     // =====================
+    // Música de fundo
+    // =====================
+    //
+    // Tenta tocar ao abrir; se o navegador bloquear (o normal, principalmente no
+    // celular), começa no primeiro toque/clique na página. Se a pessoa pausar,
+    // o site lembra e não toca sozinho nas próximas visitas.
+
+    const music = document.getElementById('music');
+    const musicButton = document.getElementById('music-button');
+    const MUSIC_KEY = 'galeria.musicaPausada';
+
+    function musicPausedByUser() {
+        try { return localStorage.getItem(MUSIC_KEY) === '1'; } catch (error) { return false; }
+    }
+
+    function rememberMusicPaused(paused) {
+        try { localStorage.setItem(MUSIC_KEY, paused ? '1' : '0'); } catch (error) { /* só nesta visita */ }
+    }
+
+    function updateMusicButton() {
+        const playing = !music.paused;
+        musicButton.querySelector('ion-icon').setAttribute('name', playing ? 'volume-high' : 'volume-mute');
+        musicButton.setAttribute('aria-label', playing ? 'Pausar música' : 'Tocar música');
+    }
+
+    function playMusic() {
+        return music.play().catch(() => { /* bloqueado até a pessoa interagir */ });
+    }
+
+    function startMusicOnFirstInteraction(event) {
+        if (musicButton.contains(event.target)) return; // o próprio botão cuida disso
+        ['pointerdown', 'keydown'].forEach((type) => document.removeEventListener(type, startMusicOnFirstInteraction));
+        if (music.paused && !musicPausedByUser()) playMusic();
+    }
+
+    music.addEventListener('play', updateMusicButton);
+    music.addEventListener('pause', updateMusicButton);
+    musicButton.addEventListener('click', () => {
+        if (music.paused) {
+            rememberMusicPaused(false);
+            playMusic();
+        } else {
+            rememberMusicPaused(true);
+            music.pause();
+        }
+    });
+
+    if (!musicPausedByUser()) {
+        playMusic();
+        ['pointerdown', 'keydown'].forEach((type) => document.addEventListener(type, startMusicOnFirstInteraction));
+    }
+
+    // =====================
     // Início
     // =====================
 
