@@ -636,6 +636,7 @@ main {
     pointer-events: none;
 }
 
+.text-input,
 .date-input,
 .today-label {
     flex: 1;
@@ -650,8 +651,41 @@ main {
     outline: none;
 }
 
+.text-input:focus,
 .date-input:focus {
     border-color: var(--pink);
+}
+
+.text-input::placeholder {
+    color: var(--brown-faint);
+}
+
+.field-help {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--brown-light);
+}
+
+.field-help a {
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.field-help strong {
+    font-weight: 600;
+    color: var(--brown-light);
+}
+
+.forget-token {
+    align-self: center;
+    margin-top: -8px;
+    padding: 8px;
+    border: none;
+    background: none;
+    font-size: 12px;
+    color: var(--brown-light);
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .today-label {

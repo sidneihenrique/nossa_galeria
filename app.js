@@ -15,6 +15,9 @@
     const form = document.getElementById('upload-form');
     const fileInput = form.elements.foto;
     const preview = document.getElementById('dropzone-preview');
+    const tokenField = document.getElementById('token-field');
+    const tokenInput = form.elements.token;
+    const forgetTokenButton = document.getElementById('forget-token');
     const dateInput = form.elements.data;
     const descInput = form.elements.descricao;
     const todayToggle = document.getElementById('use-today');
@@ -230,6 +233,162 @@
         }
     }
 
+    async function uploadToBackend(name, image, imageSuffix, infoText) {
+        const body = new FormData();
+        body.append('nome', name);
+        body.append('imagem', image, `${name}${imageSuffix}`);
+        body.append('info', new Blob([infoText], { type: 'text/plain;charset=utf-8' }), `${name}.txt`);
+
+        let response;
+        try {
+            response = await fetch(`${config.apiUrl}/upload`, { method: 'POST', body });
+        } catch (error) {
+            throw new Error('Não consegui falar com o servidor. Ele está ligado no computador?');
+        }
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.erro || `Erro ${response.status} ao enviar.`);
+    }
+
+    // =====================
+    // Envio direto para o GitHub
+    // =====================
+    //
+    // Um único commit com a imagem, o .txt e o manifest.json atualizado,
+    // feito pela API do GitHub com a chave (token) salva neste aparelho.
+
+    const TOKEN_KEY = 'galeria.githubToken';
+    const IMAGE_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+
+    function getToken() {
+        try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (error) { return ''; }
+    }
+
+    function saveToken(token) {
+        try { localStorage.setItem(TOKEN_KEY, token); } catch (error) { /* só vale para esta visita */ }
+    }
+
+    function forgetToken() {
+        try { localStorage.removeItem(TOKEN_KEY); } catch (error) { /* nada salvo */ }
+    }
+
+    // No GitHub Pages sempre; em outros endereços só se o aparelho já tiver a chave
+    function usesGithub() {
+        return location.hostname.endsWith('github.io') || Boolean(getToken());
+    }
+
+    function updateTokenField() {
+        const hasToken = Boolean(getToken());
+        tokenField.hidden = !usesGithub() || hasToken;
+        forgetTokenButton.hidden = !hasToken;
+    }
+
+    async function github(token, path, options = {}) {
+        const { owner, repo } = config.github;
+        let response;
+        try {
+            response = await fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
+                ...options,
+                cache: 'no-store',
+                headers: {
+                    Accept: 'application/vnd.github+json',
+                    Authorization: `Bearer ${token}`,
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+                },
+            });
+        } catch (error) {
+            throw new Error('Não consegui falar com o GitHub. Verifique a internet.');
+        }
+
+        if (!response.ok) {
+            const messages = {
+                401: 'A chave do GitHub é inválida ou expirou. Cole uma nova.',
+                403: 'A chave do GitHub não tem permissão para gravar no repositório.',
+                404: 'A chave do GitHub não tem acesso ao repositório nossa_galeria.',
+            };
+            const error = new Error(messages[response.status] || `O GitHub recusou o envio (erro ${response.status}).`);
+            error.status = response.status;
+            throw error;
+        }
+        return response.json();
+    }
+
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.slice(reader.result.indexOf(',') + 1));
+            reader.onerror = () => reject(new Error('Não consegui ler a foto.'));
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    function base64ToText(base64) {
+        const bytes = Uint8Array.from(atob(base64.replace(/\s/g, '')), (c) => c.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+    }
+
+    async function readRemoteManifest(token, commitSha) {
+        try {
+            const file = await github(token, `/contents/${config.github.uploadsPath}/manifest.json?ref=${commitSha}`);
+            const manifest = JSON.parse(base64ToText(file.content));
+            return Array.isArray(manifest.fotos) ? manifest : { fotos: [] };
+        } catch (error) {
+            if (error.status === 404) return { fotos: [] };
+            throw error;
+        }
+    }
+
+    async function uploadToGithub(token, name, image, extension, infoText) {
+        const { branch, uploadsPath } = config.github;
+        const imageFile = `${name}.${extension}`;
+        const infoFile = `${name}.txt`;
+
+        const imageBlob = await github(token, '/git/blobs', {
+            method: 'POST',
+            body: JSON.stringify({ content: await blobToBase64(image), encoding: 'base64' }),
+        });
+
+        // Se alguém publicar ao mesmo tempo, o branch anda e a gente refaz o commit em cima
+        for (let attempt = 1; ; attempt++) {
+            const ref = await github(token, `/git/ref/heads/${branch}`);
+            const head = ref.object.sha;
+            const commit = await github(token, `/git/commits/${head}`);
+
+            const manifest = await readRemoteManifest(token, head);
+            manifest.fotos = manifest.fotos.filter((entry) => entry.info !== infoFile);
+            manifest.fotos.push({ imagem: imageFile, info: infoFile });
+            manifest.fotos.sort((a, b) => b.info.localeCompare(a.info));
+
+            const tree = await github(token, '/git/trees', {
+                method: 'POST',
+                body: JSON.stringify({
+                    base_tree: commit.tree.sha,
+                    tree: [
+                        { path: `${uploadsPath}/${imageFile}`, mode: '100644', type: 'blob', sha: imageBlob.sha },
+                        { path: `${uploadsPath}/${infoFile}`, mode: '100644', type: 'blob', content: infoText },
+                        { path: `${uploadsPath}/manifest.json`, mode: '100644', type: 'blob', content: JSON.stringify(manifest, null, 4) + '\n' },
+                    ],
+                }),
+            });
+
+            const newCommit = await github(token, '/git/commits', {
+                method: 'POST',
+                body: JSON.stringify({ message: `Adiciona 1 foto\n\n${name}`, tree: tree.sha, parents: [head] }),
+            });
+
+            try {
+                await github(token, `/git/refs/heads/${branch}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ sha: newCommit.sha }),
+                });
+                return;
+            } catch (error) {
+                if (error.status !== 422 || attempt >= 3) throw error;
+            }
+        }
+    }
+
     async function handleSubmit(event) {
         event.preventDefault();
         showStatus('');
@@ -246,29 +405,30 @@
             return;
         }
 
+        const viaGithub = usesGithub();
+        const token = getToken() || tokenInput.value.trim();
+        if (viaGithub && !token) {
+            showStatus('Cole a chave do GitHub para guardar fotos por aqui.');
+            return;
+        }
+
         saveButton.disabled = true;
         saveButton.textContent = 'Guardando…';
 
         try {
             const name = timestampName();
             const description = descInput.value.trim();
+            const infoText = buildInfoText(isoDate, description);
             const image = await prepareImage(file);
-            const info = new Blob([buildInfoText(isoDate, description)], { type: 'text/plain;charset=utf-8' });
 
-            const body = new FormData();
-            body.append('nome', name);
-            body.append('imagem', image, `${name}${image === file ? '' : '.jpg'}`);
-            body.append('info', info, `${name}.txt`);
-
-            let response;
-            try {
-                response = await fetch(`${config.apiUrl}/upload`, { method: 'POST', body });
-            } catch (error) {
-                throw new Error('Não consegui falar com o servidor. Ele está ligado no computador?');
+            if (viaGithub) {
+                const extension = IMAGE_EXTENSIONS[image.type];
+                if (!extension) throw new Error('Formato de imagem não suportado (use JPG, PNG, WEBP ou GIF).');
+                await uploadToGithub(token, name, image, extension, infoText);
+                saveToken(token);
+            } else {
+                await uploadToBackend(name, image, image === file ? '' : '.jpg', infoText);
             }
-
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(result.erro || `Erro ${response.status} ao enviar.`);
 
             // Mostra na hora; para todo mundo aparece quando o GitHub Pages atualizar
             photos.push({ name, image: URL.createObjectURL(image), date: isoDate, description });
@@ -277,9 +437,14 @@
             form.reset();
             updatePreview();
             updateCounter();
+            updateTokenField();
             location.hash = '';
             showToast('Foto guardada! Em alguns minutos ela aparece no site para todo mundo.');
         } catch (error) {
+            if (viaGithub && [401, 403, 404].includes(error.status)) {
+                forgetToken();
+                updateTokenField();
+            }
             showStatus(error.message);
         } finally {
             saveButton.disabled = false;
@@ -293,12 +458,20 @@
 
     updateTodayLabel();
     updateCounter();
+    updateTokenField();
     descInput.addEventListener('input', updateCounter);
+    forgetTokenButton.addEventListener('click', () => {
+        forgetToken();
+        tokenInput.value = '';
+        updateTokenField();
+        showToast('Chave do GitHub apagada deste aparelho.');
+    });
     fileInput.addEventListener('change', updatePreview);
     form.addEventListener('submit', handleSubmit);
     window.addEventListener('hashchange', () => {
         if (location.hash === '#upload') {
             updateTodayLabel();
+            updateTokenField();
             showStatus('');
         }
     });

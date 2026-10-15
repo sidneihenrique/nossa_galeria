@@ -97,6 +97,16 @@
 
             <form action="#" class="upload-form" id="upload-form" novalidate>
 
+                <div class="field" id="token-field" hidden>
+                    <span class="field-label">CHAVE DO GITHUB</span>
+                    <input type="password" name="token" class="text-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="Chave do GitHub">
+                    <span class="field-help">
+                        Só na primeira vez neste aparelho.
+                        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Criar chave</a>
+                        com acesso só ao repositório <strong>nossa_galeria</strong> e permissão <strong>Contents: Read and write</strong>.
+                    </span>
+                </div>
+
                 <label class="dropzone">
                     <input type="file" name="foto" accept="image/*" required>
                     <img class="dropzone-preview" id="dropzone-preview" alt="Prévia da foto escolhida" hidden>
@@ -136,6 +146,7 @@
                 <p class="form-status" id="form-status" role="alert" hidden></p>
 
                 <button type="submit" class="save-button">Guardar foto</button>
+                <button type="button" class="forget-token" id="forget-token" hidden>Esquecer a chave do GitHub deste aparelho</button>
             </form>
         </div>
     </aside>
