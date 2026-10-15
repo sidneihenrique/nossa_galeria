@@ -85,10 +85,17 @@ header {
     text-align: center;
 }
 
-header .emojis {
+header .stickers {
     display: flex;
-    gap: 16px;
-    font-size: 28px;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+header .stickers img {
+    display: block;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
 }
 
 header .title {
@@ -956,6 +963,11 @@ textarea::placeholder {
 
     header .title {
         font-size: 64px;
+    }
+
+    header .stickers img {
+        width: 88px;
+        height: 88px;
     }
 
     header .names {
