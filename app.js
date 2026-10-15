@@ -233,23 +233,6 @@
         }
     }
 
-    async function uploadToBackend(name, image, imageSuffix, infoText) {
-        const body = new FormData();
-        body.append('nome', name);
-        body.append('imagem', image, `${name}${imageSuffix}`);
-        body.append('info', new Blob([infoText], { type: 'text/plain;charset=utf-8' }), `${name}.txt`);
-
-        let response;
-        try {
-            response = await fetch(`${config.apiUrl}/upload`, { method: 'POST', body });
-        } catch (error) {
-            throw new Error('Não consegui falar com o servidor. Ele está ligado no computador?');
-        }
-
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.erro || `Erro ${response.status} ao enviar.`);
-    }
-
     // =====================
     // Envio direto para o GitHub
     // =====================
@@ -272,14 +255,9 @@
         try { localStorage.removeItem(TOKEN_KEY); } catch (error) { /* nada salvo */ }
     }
 
-    // No GitHub Pages sempre; em outros endereços só se o aparelho já tiver a chave
-    function usesGithub() {
-        return location.hostname.endsWith('github.io') || Boolean(getToken());
-    }
-
     function updateTokenField() {
         const hasToken = Boolean(getToken());
-        tokenField.hidden = !usesGithub() || hasToken;
+        tokenField.hidden = hasToken;
         forgetTokenButton.hidden = !hasToken;
     }
 
@@ -405,9 +383,8 @@
             return;
         }
 
-        const viaGithub = usesGithub();
         const token = getToken() || tokenInput.value.trim();
-        if (viaGithub && !token) {
+        if (!token) {
             showStatus('Cole a chave do GitHub para guardar fotos por aqui.');
             return;
         }
@@ -421,14 +398,10 @@
             const infoText = buildInfoText(isoDate, description);
             const image = await prepareImage(file);
 
-            if (viaGithub) {
-                const extension = IMAGE_EXTENSIONS[image.type];
-                if (!extension) throw new Error('Formato de imagem não suportado (use JPG, PNG, WEBP ou GIF).');
-                await uploadToGithub(token, name, image, extension, infoText);
-                saveToken(token);
-            } else {
-                await uploadToBackend(name, image, image === file ? '' : '.jpg', infoText);
-            }
+            const extension = IMAGE_EXTENSIONS[image.type];
+            if (!extension) throw new Error('Formato de imagem não suportado (use JPG, PNG, WEBP ou GIF).');
+            await uploadToGithub(token, name, image, extension, infoText);
+            saveToken(token);
 
             // Mostra na hora; para todo mundo aparece quando o GitHub Pages atualizar
             photos.push({ name, image: URL.createObjectURL(image), date: isoDate, description });
@@ -441,7 +414,7 @@
             location.hash = '';
             showToast('Foto guardada! Em alguns minutos ela aparece no site para todo mundo.');
         } catch (error) {
-            if (viaGithub && [401, 403, 404].includes(error.status)) {
+            if ([401, 403, 404].includes(error.status)) {
                 forgetToken();
                 updateTokenField();
             }

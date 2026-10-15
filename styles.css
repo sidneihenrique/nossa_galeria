@@ -49,10 +49,15 @@ html {
     scroll-behavior: smooth;
 }
 
+/* A página não rola: cabeçalho e título ficam fixos, só a grade de fotos tem scroll */
 body {
+    --gutter: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     background-color: var(--background);
-    padding-bottom: 120px;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
 }
@@ -71,6 +76,7 @@ a:hover {
    ===================== */
 
 header {
+    flex: none;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -105,12 +111,11 @@ header .names {
 }
 
 main {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 1024px;
-    margin: 0 auto;
-    padding: 0 20px;
 }
 
 /* =====================
@@ -118,17 +123,23 @@ main {
    ===================== */
 
 .gallery {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     padding-top: 24px;
 }
 
 .gallery-header {
+    flex: none;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 24px;
+    width: 100%;
+    max-width: 1024px;
+    margin: 0 auto 12px;
+    padding: 0 var(--gutter);
 }
 
 .gallery-header h2 {
@@ -144,12 +155,20 @@ main {
     color: var(--brown-light);
 }
 
+/* Área com scroll: ocupa a largura toda (barra de rolagem na borda da tela),
+   com as fotos centralizadas em até 1024px como antes */
 .card-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 32px 20px;
+    align-content: start;
     align-items: start;
-    padding: 0 4px;
+    padding: 12px calc(max(0px, (100% - 1024px) / 2) + var(--gutter) + 4px) 120px;
 }
 
 /* =====================
@@ -364,6 +383,7 @@ main {
 }
 
 .gallery-empty {
+    flex: none;
     padding: 48px 16px;
     font-family: 'Caveat', cursive;
     font-size: 22px;
@@ -834,8 +854,8 @@ textarea::placeholder {
         font-size: 40px;
     }
 
-    main {
-        padding: 0 32px;
+    body {
+        --gutter: 32px;
     }
 
     .gallery {
