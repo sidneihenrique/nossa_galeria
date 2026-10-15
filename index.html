@@ -33,7 +33,13 @@
         <section class="gallery">
             <div class="gallery-header">
                 <h2>NOSSAS FOTOS</h2>
-                <span class="count" id="photo-count">carregando…</span>
+                <div class="gallery-tools">
+                    <span class="count" id="photo-count">carregando…</span>
+                    <button type="button" class="sort-button" id="sort-button" aria-label="Ordem: mais recentes primeiro">
+                        <ion-icon name="swap-vertical"></ion-icon>
+                        <span>Mais recentes</span>
+                    </button>
+                </div>
             </div>
 
             <p class="gallery-empty" id="gallery-empty" hidden>

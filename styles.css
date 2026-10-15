@@ -133,7 +133,8 @@ main {
 .gallery-header {
     flex: none;
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 12px;
     width: 100%;
@@ -153,6 +154,41 @@ main {
     font-size: 12px;
     font-weight: 600;
     color: var(--brown-light);
+}
+
+.gallery-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sort-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 12px;
+    border: 2px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.sort-button:hover {
+    border-color: var(--pink);
+}
+
+.sort-button:active {
+    transform: scale(0.96);
+}
+
+.sort-button ion-icon {
+    font-size: 14px;
+    color: var(--pink);
 }
 
 /* Área com scroll: ocupa a largura toda (barra de rolagem na borda da tela),

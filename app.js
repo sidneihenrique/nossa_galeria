@@ -11,6 +11,7 @@
     const template = document.getElementById('card-template');
     const countLabel = document.getElementById('photo-count');
     const emptyMessage = document.getElementById('gallery-empty');
+    const sortButton = document.getElementById('sort-button');
 
     const form = document.getElementById('upload-form');
     const fileInput = form.elements.foto;
@@ -114,9 +115,34 @@
         photos.sort((a, b) => b.date.localeCompare(a.date) || b.name.localeCompare(a.name));
     }
 
+    // =====================
+    // Ordem (mais recentes / mais antigas primeiro), lembrada no aparelho
+    // =====================
+
+    const SORT_KEY = 'galeria.ordem';
+    let oldestFirst = (() => {
+        try { return localStorage.getItem(SORT_KEY) === 'antigas'; } catch (error) { return false; }
+    })();
+
+    function updateSortButton() {
+        sortButton.querySelector('span').textContent = oldestFirst ? 'Mais antigas' : 'Mais recentes';
+        sortButton.setAttribute('aria-label', `Ordem: ${oldestFirst ? 'mais antigas' : 'mais recentes'} primeiro`);
+    }
+
+    function toggleSort() {
+        oldestFirst = !oldestFirst;
+        try { localStorage.setItem(SORT_KEY, oldestFirst ? 'antigas' : 'recentes'); } catch (error) { /* só nesta visita */ }
+        updateSortButton();
+        render();
+        grid.scrollTop = 0;
+    }
+
     function render() {
         sortPhotos();
-        grid.replaceChildren(...photos.map((photo, index) => createCard(photo, photos.length - index)));
+        // Nº 01 é sempre a foto mais antiga, qualquer que seja a ordem na tela
+        const cards = photos.map((photo, index) => createCard(photo, photos.length - index));
+        if (oldestFirst) cards.reverse();
+        grid.replaceChildren(...cards);
 
         emptyMessage.hidden = photos.length > 0;
 
@@ -580,6 +606,8 @@
     updateTodayLabel();
     updateCounter();
     updateTokenField();
+    updateSortButton();
+    sortButton.addEventListener('click', toggleSort);
     descInput.addEventListener('input', updateCounter);
     forgetTokenButton.addEventListener('click', () => {
         forgetToken();
