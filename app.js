@@ -14,6 +14,7 @@
 
     const form = document.getElementById('upload-form');
     const fileInput = form.elements.foto;
+    const preview = document.getElementById('dropzone-preview');
     const dateInput = form.elements.data;
     const descInput = form.elements.descricao;
     const todayToggle = document.getElementById('use-today');
@@ -135,6 +136,9 @@
         const link = card.querySelector('.photo');
         link.href = photo.image;
         link.dataset.caption = escapeHtml(dateText ? `${dateText} — ${description}` : description);
+        // Nome do arquivo baixado: nos-dois-2026-10-09_10-50-19-865.jpg
+        const extension = (/\.(\w+)$/.exec(photo.image) || [, 'jpg'])[1];
+        link.dataset.downloadFilename = `nos-dois-${photo.date}_${photo.name.slice(11)}.${extension}`;
 
         const img = card.querySelector('img');
         img.src = photo.image;
@@ -168,6 +172,24 @@
         const length = descInput.value.length;
         counter.textContent = length ? `${length}/280` : 'até 280';
     }
+
+    // Prévia da foto escolhida dentro do campo
+    function updatePreview() {
+        if (preview.src) URL.revokeObjectURL(preview.src);
+        preview.removeAttribute('src');
+        preview.hidden = true;
+
+        const file = fileInput.files[0];
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+            preview.hidden = false;
+        }
+    }
+
+    // Formato que o navegador não mostra (ex.: HEIC): fica só o aviso "Foto selecionada"
+    preview.addEventListener('error', () => {
+        if (preview.hasAttribute('src')) preview.hidden = true;
+    });
 
     function showStatus(message) {
         formStatus.textContent = message;
@@ -253,6 +275,7 @@
             render();
 
             form.reset();
+            updatePreview();
             updateCounter();
             location.hash = '';
             showToast('Foto guardada! Em alguns minutos ela aparece no site para todo mundo.');
@@ -271,6 +294,7 @@
     updateTodayLabel();
     updateCounter();
     descInput.addEventListener('input', updateCounter);
+    fileInput.addEventListener('change', updatePreview);
     form.addEventListener('submit', handleSubmit);
     window.addEventListener('hashchange', () => {
         if (location.hash === '#upload') {
@@ -280,7 +304,16 @@
     });
 
     if (window.Fancybox) {
-        Fancybox.bind('[data-fancybox="gallery"]', { Hash: false });
+        Fancybox.bind('[data-fancybox="gallery"]', {
+            Hash: false,
+            Toolbar: {
+                display: {
+                    left: ['infobar'],
+                    middle: [],
+                    right: ['download', 'slideshow', 'thumbs', 'close'],
+                },
+            },
+        });
     }
 
     loadPhotos();
